@@ -138,7 +138,25 @@ The Langfuse dashboard provides real-time insights:
 - **Trend Analysis**: Quality improvements over time
 - **Filtering**: View by role, mission, or time period
 
-![Langfuse Dashboard Overview](resources/langfuse-dashboard-overview.png)
+![Langfuse Dashboard Overview](resources/Evaluation%20dashboard.jpg)
+
+### Evaluations Interface
+
+The evaluations section shows detailed results and scoring:
+
+![Evaluations Interface](resources/Evaluations.jpg)
+
+### Prompt Configuration with Placeholders
+
+The evaluation prompt setup includes variable placeholders for dynamic data:
+
+![Prompt with Placeholders](resources/prompt%20with%20placeholders.jpg)
+
+### Variable Placeholders Configuration
+
+Configure how variables are extracted from your traces:
+
+![Variable Placeholders](resources/placeholders.jpg)
 
 ---
 
