@@ -17,6 +17,7 @@ This document provides detailed implementation guides, configuration examples, a
 - [LLM-as-a-Judge Evaluation](#llm-as-a-judge-evaluation)
 - [Langfuse Dataset Evaluation](#langfuse-dataset-evaluation)
 - [Mini AI User Simulator](#mini-ai-user-simulator)
+- [Integration & Monitoring](#integration--monitoring)
 - [Best Practices](#best-practices)
 
 ---
@@ -248,6 +249,69 @@ const createDatasetFromMiniAI = async (testResults) => {
 
 ![Dataset Creation Options](resources/dataset%20options.jpg)
 
+### Using Datasets for System Evaluation
+
+Create a dataset evaluation script inspired by the conversation-endpoint-test approach:
+
+```javascript
+// dataset-evaluation-test.js
+const { LangfuseClient } = require('@langfuse/langfuse');
+
+const langfuse = new LangfuseClient({
+  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+  secretKey: process.env.LANGFUSE_SECRET_KEY
+});
+
+const evaluateSystemWithDataset = async (datasetName) => {
+  console.log(`🧪 Running evaluation with dataset: ${datasetName}`);
+  
+  // Load dataset from Langfuse
+  const dataset = await langfuse.getDataset(datasetName);
+  console.log(`📊 Loaded ${dataset.items.length} test cases`);
+  
+  let passedTests = 0;
+  let totalTests = dataset.items.length;
+  
+  for (const item of dataset.items) {
+    try {
+      // Call your deployed Circle AI endpoint
+      const result = await callChatEndpoint(
+        item.input.userId, 
+        item.input.messages, 
+        item.input.metadata
+      );
+      
+      // Compare with expected output
+      const evaluation = compareResults(result, item.expectedOutput);
+      
+      if (evaluation.passed) {
+        passedTests++;
+        console.log(`✅ Test ${item.id}: PASSED`);
+      } else {
+        console.log(`❌ Test ${item.id}: FAILED - ${evaluation.reason}`);
+      }
+      
+    } catch (error) {
+      console.log(`💥 Test ${item.id}: ERROR - ${error.message}`);
+    }
+  }
+  
+  console.log(`\n📈 Evaluation Results:`);
+  console.log(`   Passed: ${passedTests}/${totalTests}`);
+  console.log(`   Success Rate: ${((passedTests/totalTests) * 100).toFixed(1)}%`);
+  
+  return { passedTests, totalTests, successRate: passedTests/totalTests };
+};
+
+// Usage: evaluateSystemWithDataset('circle_ai_onboarding_tests')
+```
+
+This approach enables:
+- **Systematic Testing**: Run predefined test cases against your system
+- **Performance Tracking**: Measure success rates and identify issues
+- **Regression Testing**: Ensure system stability across updates
+- **Quality Assurance**: Validate system behavior against expected outputs
+
 ---
 
 ## Mini AI User Simulator
@@ -384,48 +448,6 @@ The simulator supports various test scenarios:
 4. **Performance Testing**: Stress test with multiple concurrent users
 
 ![Mini AI Test Results](resources/mini-ai-test-results.png)
-
-### Integration with Langfuse Datasets
-
-The conversation loop test can be modified to load datasets from Langfuse and test the system:
-
-```javascript
-// Modified conversation-loop-endpoint-test.js
-const { LangfuseClient } = require('@langfuse/langfuse');
-
-const langfuse = new LangfuseClient({
-  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
-  secretKey: process.env.LANGFUSE_SECRET_KEY
-});
-
-const runDatasetTest = async (datasetName) => {
-  // Load dataset from Langfuse
-  const dataset = await langfuse.getDataset(datasetName);
-  
-  for (const item of dataset.items) {
-    // Use dataset item as test case
-    const result = await callChatEndpoint(
-      item.input.userId, 
-      item.input.messages, 
-      item.input.metadata
-    );
-    
-    // Compare with expected output
-    const evaluation = compareResults(result, item.expectedOutput);
-    
-    // Log results
-    console.log(`Test case ${item.id}: ${evaluation.passed ? 'PASSED' : 'FAILED'}`);
-  }
-};
-
-// Usage: runDatasetTest('circle_ai_onboarding_tests')
-```
-
-This approach allows you to:
-- **Load test cases** from Langfuse datasets
-- **Run systematic tests** against your system
-- **Compare results** with expected outputs
-- **Track performance** across different test scenarios
 
 ---
 
