@@ -405,6 +405,7 @@ const runConversationLoopWithEndpoint = async (maxOnboardingCycles = 1) => {
   
   let messageBuffer = [];
   let exchangeCount = 0;
+  let onboardingCyclesCompleted = 0;
   
   while (exchangeCount < maxExchanges && onboardingCyclesCompleted < maxOnboardingCycles) {
     // Generate user response
@@ -416,6 +417,27 @@ const runConversationLoopWithEndpoint = async (maxOnboardingCycles = 1) => {
     
     // Call deployed endpoint
     const result = await callChatEndpoint(userId, messageBuffer, currentMetadata);
+    
+    // Check if onboarding completed
+    if (result.metadata.isOnboardingComplete && !currentMetadata.isOnboardingComplete) {
+      onboardingCyclesCompleted++;
+      console.log(`🎉 Onboarding cycle ${onboardingCyclesCompleted} completed!`);
+      
+      // If more cycles needed, generate switch request
+      if (onboardingCyclesCompleted < maxOnboardingCycles) {
+        const switchMessage = await generateUserResponse({
+          metadata: { ...currentMetadata, isOnboardingComplete: true },
+          messages: messageBuffer,
+          currentQuestion: "What else would you like to do?"
+        });
+        messageBuffer.push({
+          messageId: `user-msg-switch-${onboardingCyclesCompleted}`,
+          sender: 'user',
+          text: switchMessage,
+          timestamp: Date.now()
+        });
+      }
+    }
     
     // Update metadata and continue
     currentMetadata = result.metadata;
@@ -433,10 +455,44 @@ const runConversationLoopWithEndpoint = async (maxOnboardingCycles = 1) => {
     success: true,
     finalMetadata: currentMetadata,
     totalExchanges: exchangeCount,
+    onboardingCyclesCompleted,
     messageHistory: messageBuffer
   };
 };
 ```
+
+#### Onboarding Cycles Parameter
+
+The `maxOnboardingCycles` parameter controls how many complete onboarding scenarios the Mini AI will perform:
+
+**Parameter Details:**
+- **Default Value**: `1` (single onboarding cycle)
+- **Range**: `1-5` (recommended for comprehensive testing)
+- **Purpose**: Test different mission/role combinations
+
+**Cycle Behavior:**
+1. **Cycle 1**: User selects initial mission/role (e.g., "I want to be a tutor")
+2. **Cycle 2**: After completion, user switches to different role (e.g., "I need a tutor")
+3. **Cycle 3**: User tries another combination (e.g., "I want to find study partners")
+4. **And so on...**
+
+**Example Usage:**
+```javascript
+// Test 2 onboarding cycles
+await runConversationLoopWithEndpoint(2);
+
+// Test 3 different role combinations
+await runConversationLoopWithEndpoint(3);
+
+// Comprehensive testing with 5 cycles
+await runConversationLoopWithEndpoint(5);
+```
+
+**Benefits of Multiple Cycles:**
+- **Role Diversity**: Test different user personas (student, tutor, mentor)
+- **Mission Variety**: Test various connection types (tutoring, study partners, mentoring)
+- **System Robustness**: Ensure platform handles role switching gracefully
+- **Real-world Simulation**: Mimic users who explore multiple options
 
 ### Test Scenarios
 
@@ -446,8 +502,6 @@ The simulator supports various test scenarios:
 2. **Role Switching**: Test users switching between different roles
 3. **Edge Cases**: Handle unusual user inputs and responses
 4. **Performance Testing**: Stress test with multiple concurrent users
-
-![Mini AI Test Results](resources/mini-ai-test-results.png)
 
 ---
 
