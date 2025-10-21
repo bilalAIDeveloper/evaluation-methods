@@ -4,8 +4,8 @@
 
 Circle AI implements three comprehensive evaluation methods to ensure high-quality user experiences and continuous platform improvement:
 
-1. **Langfuse Dataset Evaluation** - Systematic testing with predefined test cases
-2. **LLM-as-a-Judge Evaluation** - Real-time quality assessment using AI judges
+1. **LLM-as-a-Judge Evaluation** - Real-time quality assessment using AI judges
+2. **Langfuse Dataset Evaluation** - Systematic testing with predefined test cases
 3. **Mini AI User Simulator** - Automated end-to-end testing with simulated users
 
 This document provides detailed implementation guides, configuration examples, and monitoring strategies for each evaluation method.
@@ -264,12 +264,280 @@ const runDatasetWithLangfuse = async () => {
 };
 ```
 
-### Dataset Creation Process
+### Dataset Creation Methods
 
-1. **Manual Test Cases**: Create specific scenarios for testing
-2. **Synthetic Data**: Generate test cases using LLMs
-3. **Production Mining**: Extract real user interactions for testing
-4. **Validation**: Ensure test cases cover critical user journeys
+Langfuse provides multiple flexible methods for creating datasets, accommodating different workflows and preferences:
+
+#### **Method 1: UI-Based Dataset Creation**
+
+**UI Dataset Creation Process:**
+
+1. **Dataset Initialization**
+   - Navigate to Langfuse dashboard → Datasets section
+   - Initialize new dataset with required metadata
+
+2. **Dataset Configuration**
+   ```
+   Dataset Name: "circle_ai_onboarding_tests"
+   Description: "Test cases for Circle AI onboarding flow"
+   Metadata: {"version": "1.0", "tags": ["onboarding", "medical_education"]}
+   ```
+
+3. **Item Population Methods**
+   - **Manual Entry**: Individual test case creation
+   - **CSV Upload**: Bulk import for large datasets
+   - **Production Mining**: Extract from existing trace data
+
+4. **CSV Import Format**
+   ```csv
+   input,expected_output,metadata
+   "{\"userId\":\"user1\",\"messages\":[{\"text\":\"I want to be a tutor\"}]}","{\"aiResponses\":[{\"text\":\"Great! Let's set up your tutor profile...\"}]}","{\"scenario\":\"tutor_onboarding\"}"
+   "{\"userId\":\"user2\",\"messages\":[{\"text\":\"I need a tutor\"}]}","{\"aiResponses\":[{\"text\":\"I'll help you find a tutor...\"}]}","{\"scenario\":\"student_seeking_tutor\"}"
+   ```
+
+#### **Method 2: SDK-Based Dataset Creation**
+
+**JavaScript/TypeScript SDK Implementation:**
+
+```javascript
+import { LangfuseClient } from "@langfuse/langfuse";
+
+const langfuse = new LangfuseClient({
+  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+  secretKey: process.env.LANGFUSE_SECRET_KEY
+});
+
+// Create Dataset
+const createCircleAIDataset = async () => {
+  await langfuse.createDataset({
+    name: "circle_ai_onboarding_tests",
+    description: "Test cases for Circle AI onboarding flow",
+    metadata: { 
+      version: "1.0",
+      createdBy: "development_team",
+      tags: ["onboarding", "medical_education"]
+    }
+  });
+};
+
+// Add Individual Items
+const addTestCases = async () => {
+  const testCases = [
+    {
+      input: {
+        userId: "test_user_1",
+        messages: [{"sender": "user", "text": "I want to be a tutor"}],
+        metadata: {"currentPhase": "mission_selection"}
+      },
+      expectedOutput: {
+        aiResponses: [{"text": "Great! Let's set up your tutor profile..."}],
+        metadata: {"currentPhase": "role_definition"}
+      },
+      metadata: {
+        scenario: "tutor_onboarding_start",
+        difficulty: "easy",
+        userType: "tutor"
+      }
+    },
+    {
+      input: {
+        userId: "test_user_2", 
+        messages: [{"sender": "user", "text": "I need a tutor"}],
+        metadata: {"currentPhase": "mission_selection"}
+      },
+      expectedOutput: {
+        aiResponses: [{"text": "I'll help you find a tutor..."}],
+        metadata: {"currentPhase": "role_definition"}
+      },
+      metadata: {
+        scenario: "student_seeking_tutor",
+        difficulty: "easy", 
+        userType: "student"
+      }
+    }
+  ];
+
+  for (const testCase of testCases) {
+    await langfuse.createDatasetItem({
+      datasetName: "circle_ai_onboarding_tests",
+      ...testCase
+    });
+  }
+};
+```
+
+#### **Method 3: Hybrid Approach (UI + SDK)**
+
+**Best of Both Worlds:**
+
+```javascript
+// 1. Create dataset via UI (one-time setup)
+// 2. Populate via SDK (automated)
+
+const populateDatasetFromProduction = async () => {
+  // Get production traces
+  const traces = await langfuse.getTraces({
+    from: new Date('2024-01-01'),
+    to: new Date('2024-01-31')
+  });
+  
+  // Convert to dataset items
+  for (const trace of traces) {
+    await langfuse.createDatasetItem({
+      datasetName: "production_mined_cases",
+      input: trace.input,
+      expectedOutput: trace.output,
+      metadata: {
+        source: "production",
+        timestamp: trace.timestamp,
+        userId: trace.userId
+      }
+    });
+  }
+};
+```
+
+#### **Method 4: Automated Dataset Creation from Mini AI**
+
+**Integration with Your Existing Test System:**
+
+```javascript
+// Extend your conversation-loop-endpoint-test.js
+const createDatasetFromMiniAI = async (testResults) => {
+  const datasetName = "mini_ai_simulator_results";
+  
+  // Create dataset
+  await langfuse.createDataset({
+    name: datasetName,
+    description: "Test cases generated by Mini AI simulator",
+    metadata: { 
+      source: "mini_ai_simulator",
+      testRunId: testResults.runId,
+      totalCases: testResults.results.length
+    }
+  });
+  
+  // Add test results as dataset items
+  for (const result of testResults.results) {
+    await langfuse.createDatasetItem({
+      datasetName,
+      input: {
+        userId: result.userId,
+        messages: result.messageHistory,
+        metadata: result.initialMetadata
+      },
+      expectedOutput: {
+        aiResponses: result.aiResponses,
+        metadata: result.finalMetadata,
+        matches: result.matches
+      },
+      metadata: {
+        testType: "mini_ai_simulation",
+        onboardingCycles: result.onboardingCycles,
+        totalExchanges: result.totalExchanges
+      }
+    });
+  }
+};
+```
+
+### Dataset Creation Workflow
+
+```mermaid
+graph TD
+    A[Choose Creation Method] --> B{UI or SDK?}
+    B -->|UI| C[Manual Dataset Creation]
+    B -->|SDK| D[Programmatic Creation]
+    
+    C --> E[Add Items Manually]
+    C --> F[CSV Upload]
+    C --> G[Production Mining]
+    
+    D --> H[Create Dataset via Code]
+    D --> I[Add Items Programmatically]
+    D --> J[Bulk Import]
+    
+    E --> K[Dataset Ready]
+    F --> K
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+    
+    K --> L[Run Experiments]
+    L --> M[Analyze Results]
+    
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#fff3e0
+    style D fill:#e8f5e8
+    style K fill:#fff8e1
+    style L fill:#fce4ec
+    style M fill:#e0f2f1
+```
+
+### Dataset Categories for Circle AI
+
+#### **1. Onboarding Scenarios**
+- Mission selection flows
+- Role definition processes  
+- Facet collection interactions
+- Onboarding completion tests
+
+#### **2. User Type Variations**
+- Medical students seeking tutors
+- Experienced tutors offering services
+- Students looking for study partners
+- Mentors providing guidance
+
+#### **3. Edge Cases**
+- Unusual user inputs
+- Error handling scenarios
+- Boundary conditions
+- Performance edge cases
+
+#### **4. Quality Scenarios**
+- High-quality interactions (for benchmarking)
+- Problematic interactions (for improvement)
+- Ambiguous user requests
+- Multi-turn conversations
+
+### Dataset Management Features
+
+#### **UI Management Capabilities**
+- **Visual Interface**: Non-programmatic dataset management
+- **File Upload**: Direct CSV/JSON import functionality
+- **Data Preview**: Pre-import validation and formatting
+- **Format Validation**: Automatic data structure verification
+- **Batch Operations**: Multi-item editing and management
+- **Query Interface**: Advanced filtering and search capabilities
+
+#### **SDK Management Capabilities**
+- **Automation**: Programmatic dataset creation
+- **Integration**: Works with existing codebases
+- **Versioning**: Track dataset changes
+- **Collaboration**: Share datasets with team members
+- **Conditional Logic**: Create datasets based on criteria
+
+### Best Practices for Dataset Creation
+
+#### **Dataset Design**
+- **Incremental Approach**: Start with core test cases (10-20), expand systematically
+- **Semantic Naming**: Use descriptive identifiers and comprehensive descriptions
+- **Schema Standardization**: Maintain consistent input/output structure across all items
+- **Version Management**: Implement regular updates and change tracking
+
+#### **Data Quality**
+- **Production Data Integration**: Leverage actual user interaction patterns
+- **Comprehensive Coverage**: Include diverse user personas and interaction scenarios
+- **Boundary Testing**: Implement edge case validation
+- **Executability Verification**: Ensure all test cases are runnable and valid
+
+#### **Maintenance**
+- **Version Control**: Implement systematic dataset versioning and change tracking
+- **Metadata Tagging**: Use structured tags for efficient filtering and organization
+- **Documentation Standards**: Maintain comprehensive dataset purpose and usage documentation
+- **Collaborative Workflows**: Establish team-based dataset creation and review processes
 
 ![Dataset Creation Workflow](resources/dataset-creation-workflow.png)
 
