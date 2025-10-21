@@ -473,15 +473,3 @@ The three evaluation methods work together to provide comprehensive quality assu
 By implementing all three methods, you achieve complete coverage of your platform's quality assurance needs while maintaining cost-effectiveness and scalability.
 
 ---
-
-## Resources
-
-- [Langfuse Documentation](https://langfuse.com/docs)
-- [Circle AI Codebase](../backend/CircleServer/functions/src/)
-- [Evaluation Examples](resources/evaluation-examples/)
-- [Dashboard Screenshots](resources/dashboard-screenshots/)
-
----
-
-*Last updated: January 2024*
-*Version: 1.0*
