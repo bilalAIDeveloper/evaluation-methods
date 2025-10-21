@@ -162,6 +162,32 @@ Configure how variables are extracted from your traces:
 
 ## Langfuse Dataset Evaluation
 
+### Dataset Creation Flow
+
+```mermaid
+graph TD
+    A[Choose Creation Method] --> B{UI or SDK?}
+    B -->|UI| C[Manual Creation]
+    B -->|SDK| D[Programmatic Creation]
+    
+    C --> E[Add Items Manually]
+    C --> F[CSV Upload]
+    
+    D --> G[Create Dataset via Code]
+    D --> H[Add Items Programmatically]
+    
+    E --> I[Dataset Ready]
+    F --> I
+    G --> I
+    H --> I
+    
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#fff3e0
+    style D fill:#e8f5e8
+    style I fill:#f1f8e9
+```
+
 ### Dataset Creation Methods
 
 #### **UI-Based Creation**
@@ -220,6 +246,8 @@ const createDatasetFromMiniAI = async (testResults) => {
 - **User Types**: Students, tutors, mentors with different interaction patterns
 - **Edge Cases**: Unusual inputs, error handling, boundary conditions
 - **Quality Scenarios**: High-quality benchmarks, problematic interactions
+
+![Dataset Creation Options](resources/dataset%20options.jpg)
 
 ---
 
@@ -358,61 +386,47 @@ The simulator supports various test scenarios:
 
 ![Mini AI Test Results](resources/mini-ai-test-results.png)
 
----
+### Integration with Langfuse Datasets
 
-## Integration & Monitoring
+The conversation loop test can be modified to load datasets from Langfuse and test the system:
 
-### Evaluation Method Comparison
+```javascript
+// Modified conversation-loop-endpoint-test.js
+const { LangfuseClient } = require('@langfuse/langfuse');
 
-| Method | Use Case | Pros | Cons | Best For |
-|--------|----------|------|------|----------|
-| **LLM-as-a-Judge** | Real-time quality | Automatic, comprehensive | Cost per evaluation | Production monitoring |
-| **Dataset Evaluation** | Systematic testing | Consistent, repeatable | Manual setup | Regression testing |
-| **Mini AI Simulator** | End-to-end testing | Realistic scenarios | Complex setup | Integration testing |
+const langfuse = new LangfuseClient({
+  publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+  secretKey: process.env.LANGFUSE_SECRET_KEY
+});
 
-### Monitoring Dashboard
-
-```mermaid
-graph TB
-    A[Circle AI Platform] --> B[Langfuse Traces]
-    B --> C[Evaluation Results]
-    C --> D[Quality Metrics]
-    D --> E[Alert System]
-    E --> F[Action Items]
+const runDatasetTest = async (datasetName) => {
+  // Load dataset from Langfuse
+  const dataset = await langfuse.getDataset(datasetName);
+  
+  for (const item of dataset.items) {
+    // Use dataset item as test case
+    const result = await callChatEndpoint(
+      item.input.userId, 
+      item.input.messages, 
+      item.input.metadata
+    );
     
-    subgraph "Monitoring Views"
-        G[Real-time Scores]
-        H[Trend Analysis]
-        I[Filtered Views]
-        J[Export Reports]
-    end
+    // Compare with expected output
+    const evaluation = compareResults(result, item.expectedOutput);
     
-    C --> G
-    C --> H
-    C --> I
-    C --> J
-    
-    style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style C fill:#fff3e0
-    style D fill:#e8f5e8
-    style E fill:#fff8e1
-    style F fill:#f1f8e9
+    // Log results
+    console.log(`Test case ${item.id}: ${evaluation.passed ? 'PASSED' : 'FAILED'}`);
+  }
+};
+
+// Usage: runDatasetTest('circle_ai_onboarding_tests')
 ```
 
-### Quality Thresholds
-
-Set up automated alerts for quality degradation:
-
-- **Score < 0.6**: Critical quality issue
-- **Score < 0.7**: Quality concern
-- **Score > 0.9**: Excellent performance
-
-### Cost Management
-
-- **LLM-as-a-Judge**: Monitor evaluation frequency and model costs
-- **Dataset Evaluation**: Control test run frequency
-- **Mini AI Simulator**: Manage simulation complexity and duration
+This approach allows you to:
+- **Load test cases** from Langfuse datasets
+- **Run systematic tests** against your system
+- **Compare results** with expected outputs
+- **Track performance** across different test scenarios
 
 ---
 
