@@ -17,7 +17,6 @@ This document provides detailed implementation guides, configuration examples, a
 - [LLM-as-a-Judge Evaluation](#llm-as-a-judge-evaluation)
 - [Langfuse Dataset Evaluation](#langfuse-dataset-evaluation)
 - [Mini AI User Simulator](#mini-ai-user-simulator)
-- [Integration & Monitoring](#integration--monitoring)
 - [Best Practices](#best-practices)
 
 ---
